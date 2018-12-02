@@ -49,6 +49,8 @@ func index(w http.ResponseWriter, r *http.Request) {
 	HandleError(w, err)
 }
 
+// TODO: Need to get all of the playlist by iterating
+//.      through the pages returned
 func home(w http.ResponseWriter, r *http.Request) {
 	c, err := r.Cookie("Auth")
 	HandleError(w, err)

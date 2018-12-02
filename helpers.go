@@ -28,7 +28,10 @@ func SetAuthCookie(w http.ResponseWriter, tok *oauth2.Token) {
 func GetAuthToken(cookie *http.Cookie, w http.ResponseWriter) *oauth2.Token {
 	var tok *oauth2.Token
 	jsonTok := Decode64([]byte(cookie.Value))
-	err := json.Unmarshal(jsonTok[:len(jsonTok)-2], &tok)
+	for jsonTok[len(jsonTok)-1] == 0 {
+		jsonTok = jsonTok[:len(jsonTok)-1]
+	}
+	err := json.Unmarshal(jsonTok, &tok)
 	HandleError(w, err)
 	return tok
 }

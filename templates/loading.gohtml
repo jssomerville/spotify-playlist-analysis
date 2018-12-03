@@ -19,23 +19,13 @@
 			<div id="wrapper">
 
 				<!-- Main -->
-					<section id="main">
-						<header>
-							<span class="avatar"><img src="images/avatar.svg" alt="" /></span>
-							<h1>Spotify Playlist Analysis</h1>
-							<p>Playlist Data Visualized</p>
-						</header>
-						<footer>
-							<!-- <button class="large" href="/connect-account">Connect Spotify Account</button> -->
-							<!-- https://accounts.spotify.com/authorize?client_id=e9f1c39a6c6b418a973c2a536cc1b82a&amp;redirect_uri=http%3A%2F%2Flocalhost%3A8080%2Fcallback&amp;response_type=code&amp;scope=user-read-private&amp;state=abc123 -->
-							<form action="{{.Host}}" method="GET">
-								{{range $key, $value := .Parameters}}
-									<input type="hidden" name="{{$key}}" value="{{index . 0}}">
-								{{end}}
-    							<input type="submit" value="Connect Spotify Account" />
-							</form>
-						</footer>
-					</section>
+				<div class="spinner">
+				  <div class="rect1"></div>
+				  <div class="rect2"></div>
+				  <div class="rect3"></div>
+				  <div class="rect4"></div>
+				  <div class="rect5"></div>
+				</div>
 
 				<!-- Footer -->
 					<footer id="footer">

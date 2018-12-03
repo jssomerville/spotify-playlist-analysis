@@ -21,18 +21,38 @@
         <!-- Main -->
           <section id="main">
             <header>
-              <span class="avatar"><img src="images/avatar.svg" alt="" /></span>
-              <h1>The Beginning</h1>
-              <p>{{.}}</p>
+              {{$img := index .Playlist.Images 0}}
+              <span class="avatar"><img src="{{$img.URL}}" alt="" style="width: 100%"/></span>
+              <h1>{{.Playlist.Name}}</h1>
+              <p>{{.Playlist.Tracks.Total}} Tracks Analyzed</p>
             </header>
             <footer>
+              <!-- First Track -->
+              <div class="card">
+                {{$albumArt := index .FirstTrack.Track.Album.Images 0}}
+                  <img src="{{$albumArt.URL}}" alt="Avatar" style="width:100%">
+                  <div class="container">
+                    <h2>First Track Added</h2>                 
+                    <p>{{.FirstTrack.Track.SimpleTrack.Name}}<br>Added {{.FirstTrack.AddedAt}}</p> 
+                  </div>
+              </div>
+              <br>
+              <!-- Tempo -->
+              <div class="card" style="padding-top: 20px">
+                  <div class="spinner" style="-webkit-animation: sk-scaleout {{.BPS}}s infinite ease-in-out;animation: sk-scaleout {{.BPS}}s infinite ease-in-out;"></div>
+                  <div class="container">
+                    <h2>Average Tempo</h2>                 
+                    <p>{{printf "%.2f" .Tempo}} Beats Per Minute</p> 
+                  </div>
+              </div>
+              <br>
             </footer>
           </section>
 
         <!-- Footer -->
           <footer id="footer">
             <ul class="copyright">
-              <li>&copy; Jesse Somerville</li><li>Design: <a href="http://html5up.net">HTML5 UP</a></li>
+              <li>&copy; Jesse Somerville</li>
             </ul>
           </footer>
 

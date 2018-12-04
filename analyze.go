@@ -1,16 +1,13 @@
 package main
 
 import (
+	"fmt"
 	"net/http"
 	"time"
 
 	"github.com/zmb3/spotify"
 	// "golang.org/x/oauth2"
 )
-
-type analysisData struct {
-	tempo float64
-}
 
 func analyzePlaylist(w http.ResponseWriter, r *http.Request) {
 	if r.Method == "POST" {
@@ -41,6 +38,7 @@ func analyzePlaylist(w http.ResponseWriter, r *http.Request) {
 	}
 }
 
+// ~800 ms for 36 songs
 func getTracks(pl spotify.SimplePlaylist, client spotify.Client, w http.ResponseWriter) []spotify.PlaylistTrack {
 	ctry := "US"
 	opt := spotify.Options {Country: &ctry}
@@ -60,45 +58,36 @@ func getTracks(pl spotify.SimplePlaylist, client spotify.Client, w http.Response
 
 		tracks = append(tracks, t.Tracks...)
 	}
-	leftover := total % 20
-	ofst := len(tracks)
-	opt = spotify.Options {
-		Limit: &leftover,
-		Offset: &ofst,
+	if total % 20 != 0 {
+		leftover := total % 20
+		ofst := len(tracks)
+		opt = spotify.Options {
+			Limit: &leftover,
+			Offset: &ofst,
+		}
+
+		t, err = client.GetPlaylistTracksOpt(pl.ID, &opt, "")
+		HandleError(w, err)
+
+		tracks = append(tracks, t.Tracks...)
 	}
-
-	t, err = client.GetPlaylistTracksOpt(pl.ID, &opt, "")
-	HandleError(w, err)
-
-	tracks = append(tracks, t.Tracks...)
 
 	return tracks
 }
 
 func analyzeTracks(pl spotify.SimplePlaylist, tracks []spotify.PlaylistTrack, w http.ResponseWriter, client spotify.Client) {
 	firstTrack := getFirstTrack(tracks, w)
-	data := audioAnalysis(tracks, w, client)
+	audioAnalysis(tracks, w, client)
 
 	t, err := time.Parse(time.RFC3339, firstTrack.AddedAt)
 	HandleError(w, err)
 	firstTrack.AddedAt = t.Format(time.RFC822)
 
-	a := struct {
-		Playlist spotify.SimplePlaylist
-		FirstTrack spotify.PlaylistTrack
-		Tempo, BPS float64
-	} {
-		pl,
-		firstTrack,
-		data.tempo,
-		60.0 / data.tempo,
-	}
-
-	err = tpl.ExecuteTemplate(w, "analyze.gohtml", a)
+	// err = tpl.ExecuteTemplate(w, "analyze.gohtml", a)
 	HandleError(w, err)
-
 }
 
+// ~ 27 micro sec for 36 tracks
 func getFirstTrack(tracks []spotify.PlaylistTrack, w http.ResponseWriter) spotify.PlaylistTrack {
 	earliestTime := time.Unix(1<<63-62135596801, 999999999)
 	var firstTrack spotify.PlaylistTrack
@@ -113,27 +102,81 @@ func getFirstTrack(tracks []spotify.PlaylistTrack, w http.ResponseWriter) spotif
 	return firstTrack
 }
 
-func audioAnalysis(tracks []spotify.PlaylistTrack, w http.ResponseWriter, client spotify.Client) analysisData {
-	var aa []*spotify.AudioAnalysis
-
-	for i := range tracks {
-		a, err := client.GetAudioAnalysis(tracks[i].Track.SimpleTrack.ID)
-		aa = append(aa, a)
+func audioAnalysis(tracks []spotify.PlaylistTrack, w http.ResponseWriter, client spotify.Client) {
+	trackChunks := ChunkSlice(tracks)
+	var audioFeatures []*spotify.AudioFeatures
+	for i := range trackChunks {
+		af, err := client.GetAudioFeatures(trackChunks[i]...)
 		HandleError(w, err)
+		audioFeatures = append(audioFeatures, af...)
 	}
+	ch1 := make(chan float32)
+	ch2 := make(chan float32)
+	ch3 := make(chan int)
+	ch4 := make(chan float32)
+	ch5 := make(chan float32)
 
-	var tempo float64
-	for i := range aa {
-		tempo += aa[i].Track.Tempo
+	go getAvgTempo(audioFeatures, ch1)
+	go getAvgDance(audioFeatures, ch2)
+	go getAvgDuration(audioFeatures, ch3)
+	go getAvgEnergy(audioFeatures, ch4)
+	go getAvgValence(audioFeatures, ch5)
+
+	avgTempo, avgDance, avgDuration, avgEnergy, avgValence := <-ch1, <-ch2, <-ch3, <-ch4, <-ch5
+
+	audioAnalysisData := struct {
+		Tempo, Dance, Energy, Valence float32
+		Duration int
+	} {
+		avgTempo,
+		avgDance,
+		avgEnergy,
+		avgValence,
+		avgDuration,
 	}
-
-	tempo = tempo / float64(len(tracks))
-
-	data := analysisData {
-		tempo,
-	}
-
-	return data
-
 }
 
+func getAvgTempo(f []*spotify.AudioFeatures, c chan float32) {
+	var avg float32
+	for _, i := range f {
+		avg += i.Tempo
+	}
+	avg /= float32(len(f))
+	c <- avg
+}
+
+func getAvgDance(f []*spotify.AudioFeatures, c chan float32) {
+	var avg float32
+	for _, i := range f {
+		avg += i.Danceability
+	}
+	avg /= float32(len(f))
+	c <- avg
+}
+
+func getAvgDuration(f []*spotify.AudioFeatures, c chan int) {
+	var avg int
+	for _, i := range f {
+		avg += i.Duration
+	}
+	avg /= len(f)
+	c <- avg
+}
+
+func getAvgEnergy(f []*spotify.AudioFeatures, c chan float32) {
+	var avg float32
+	for _, i := range f {
+		avg += i.Energy
+	}
+	avg /= float32(len(f))
+	c <- avg
+}
+
+func getAvgValence(f []*spotify.AudioFeatures, c chan float32) {
+	var avg float32
+	for _, i := range f {
+		avg += i.Valence
+	}
+	avg /= float32(len(f))
+	c <- avg
+}

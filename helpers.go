@@ -6,6 +6,7 @@ import (
 	"log"
 	"net/http"
 
+	"github.com/zmb3/spotify"
 	"golang.org/x/oauth2"
 )
 
@@ -48,6 +49,32 @@ func Decode64(x []byte) []byte {
 	str := make([]byte, decLen)
 	base64.StdEncoding.Decode(str, x)
 	return str
+}
+
+func ChunkSlice(tracks []spotify.PlaylistTrack) [][]spotify.ID {
+	var divided [][]spotify.PlaylistTrack
+
+	chunkSize := 100
+
+	for i := 0; i < len(tracks); i += chunkSize {
+	    end := i + chunkSize
+
+	    if end > len(tracks) {
+	        end = len(tracks)
+	    }
+
+	    divided = append(divided, tracks[i:end])
+	}
+
+	ids := make([][]spotify.ID, len(divided))
+	for i := range divided {
+		ids[i] = make([]spotify.ID, len(divided[i]))
+		for j := range divided[i] {
+			ids[i][j] = divided[i][j].Track.SimpleTrack.ID
+		}
+	}
+
+	return ids
 }
 
 func HandleError(w http.ResponseWriter, err error) {
